@@ -1,0 +1,26 @@
+.git
+.gitignore
+.vscode/
+.idea/
+.DS_Store
+bin/
+*.exe
+*.test
+*.out
+
+
+.env
+tokens/default.token.json
+accounts/account.config.json
+internal/channel_record/channels.json
+*.log
+
+# Allow folders, templates
+!tokens/.gitkeep
+!accounts/
+!config/accounts.example.json
+!internal/channel_record/
+!config/channels.example.json
+
+
+

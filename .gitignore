@@ -1,0 +1,27 @@
+bin/
+*.exe
+*.test
+*.out
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+
+.env
+accounts/account.config.json
+tokens/default.token.json
+internal/channel_record/channels.json
+*.log
+
+# Allow folders, templates
+!tokens/
+!tokens/.gitkeep
+
+!accounts/
+!config/accounts.example.json
+
+!internal/channel_record/
+!config/channels.example.json
+
+

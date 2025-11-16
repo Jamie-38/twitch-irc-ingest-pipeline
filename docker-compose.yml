@@ -1,0 +1,73 @@
+version: "3.9"
+
+services:
+  redpanda:
+    image: redpandadata/redpanda:latest
+    container_name: redpanda
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp
+      - "1"
+      - --memory
+      - 1G
+      - --reserve-memory
+      - 0M
+      - --node-id
+      - "0"
+      - --check=false
+      - --kafka-addr
+      - "0.0.0.0:9092"
+      - --advertise-kafka-addr
+      - "redpanda:9092"
+    ports:
+      - "9092:9092"   # Kafka API
+      - "9644:9644"   # Admin API
+    volumes:
+      - redpanda-data:/var/lib/redpanda
+
+  oauth_server:
+    build: .
+    container_name: oauth_server
+    command: ["/app/oauth_server"]
+    env_file: .env
+    environment:
+      TOKENS_PATH: "tokens/default.token.json"
+    volumes:
+      - ./tokens:/app/tokens
+      - ./accounts:/app/accounts:ro
+    ports:
+      - "3000:3000"   # Twitch redirects to http://localhost:3000/callback
+
+  irc_collector:
+    build: .
+    container_name: irc_collector
+    command: ["/app/irc_collector"]
+    env_file: .env
+    environment:
+      ACCOUNTS_PATH: "accounts/account.config.json"
+      TOKENS_PATH: "tokens/default.token.json"
+      CHANNELS_PATH: "internal/channel_record/channels.json"
+    depends_on:
+      - redpanda
+      - oauth_server
+    volumes:
+      - ./tokens:/app/tokens
+      - ./accounts:/app/accounts:ro
+      - ./internal/channel_record:/app/internal/channel_record
+    ports:
+      - "6060:6060"   # HTTP API: /join, /part
+
+  kafka_consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["/app/kafka_consumer"]
+    depends_on:
+      - redpanda
+    env_file:
+      - .env
+
+volumes:
+  redpanda-data:
