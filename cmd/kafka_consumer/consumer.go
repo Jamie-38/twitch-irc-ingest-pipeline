@@ -19,7 +19,7 @@ func main() {
 		log.Fatal("KAFKA_TOPIC is empty")
 	}
 	groupID := os.Getenv("KAFKA_GROUPID")
-	if topic == "" {
+	if groupID == "" {
 		log.Fatal("KAFKA_GROUPID is empty")
 	}
 
