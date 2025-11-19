@@ -8,7 +8,7 @@ import (
 	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/types"
 )
 
-func Control_scheduler(ctx context.Context, controlCh <-chan types.IRCCommand, writerCh chan<- string) {
+func ControlScheduler(ctx context.Context, controlCh <-chan types.IRCCommand, writerCh chan<- string) {
 	lg := observe.C("scheduler")
 
 	send := func(line string, channel string) {

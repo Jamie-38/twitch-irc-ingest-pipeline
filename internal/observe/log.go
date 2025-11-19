@@ -23,7 +23,7 @@ func newLogger() *slog.Logger {
 		Level: level,
 	})
 	return slog.New(h).With(
-		slog.String("service", "stream-pipeline"),
+		slog.String("service", "twitch-irc-ingest-pipeline"),
 		slog.String("env", os.Getenv("APP_ENV")),
 	)
 }

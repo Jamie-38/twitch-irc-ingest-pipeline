@@ -13,7 +13,7 @@ func LoadTokenJSON(path string) (types.Token, error) {
 
 	f, err := os.Open(path)
 	if err != nil {
-		return tok, fmt.Errorf("open account file %q: %w", path, err)
+		return tok, fmt.Errorf("open token file %q: %w", path, err)
 	}
 	defer func() {
 		_ = f.Close()

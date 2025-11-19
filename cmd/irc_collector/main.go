@@ -102,7 +102,7 @@ func main() {
 
 	// IRC control scheduler (JOIN/PART -> writerCh)
 	g.Go(func() error {
-		scheduler.Control_scheduler(ctx, rectifierOutCh, writerCh)
+		scheduler.ControlScheduler(ctx, rectifierOutCh, writerCh)
 		return nil
 	})
 
