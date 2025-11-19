@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	ircevents "github.com/Jamie-38/stream-pipeline/internal/irc_events"
-	"github.com/Jamie-38/stream-pipeline/internal/types"
+	ircevents "github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/irc_events"
+	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/types"
 )
 
 type clsRig struct {

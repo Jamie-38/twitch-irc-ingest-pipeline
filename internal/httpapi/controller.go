@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Jamie-38/stream-pipeline/internal/healthcheck"
-	"github.com/Jamie-38/stream-pipeline/internal/observe"
-	"github.com/Jamie-38/stream-pipeline/internal/types"
+	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/healthcheck"
+	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/observe"
+	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/types"
 )
 
 func (api *APIController) Join(w http.ResponseWriter, r *http.Request) {
@@ -26,7 +26,7 @@ func (api *APIController) Join(w http.ResponseWriter, r *http.Request) {
 
 	api.lg.Info("enqueue join", "channel", ch, "remote", r.RemoteAddr)
 	api.ControlCh <- types.IRCCommand{Op: "JOIN", Channel: "#" + ch}
-	w.Write([]byte("Queued join for channel: " + ch))
+	_, _ = w.Write([]byte("Queued join for channel: " + ch))
 }
 
 func (api *APIController) Part(w http.ResponseWriter, r *http.Request) {
@@ -38,7 +38,7 @@ func (api *APIController) Part(w http.ResponseWriter, r *http.Request) {
 	}
 	api.lg.Info("enqueue part", "channel", ch, "remote", r.RemoteAddr)
 	api.ControlCh <- types.IRCCommand{Op: "PART", Channel: "#" + ch}
-	w.Write([]byte("Queued part for channel: " + ch))
+	_, _ = w.Write([]byte("Queued part for channel: " + ch))
 }
 
 func Run(ctx context.Context, controlCh chan types.IRCCommand) error {

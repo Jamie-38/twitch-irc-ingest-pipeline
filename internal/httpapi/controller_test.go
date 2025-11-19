@@ -5,8 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/Jamie-38/stream-pipeline/internal/observe"
-	"github.com/Jamie-38/stream-pipeline/internal/types"
+	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/observe"
+	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/types"
 )
 
 func TestJoinEnqueuesLowercasedHashChannel(t *testing.T) {

@@ -1,4 +1,4 @@
-module github.com/Jamie-38/stream-pipeline
+module github.com/Jamie-38/twitch-irc-ingest-pipeline
 
 go 1.24.0
 

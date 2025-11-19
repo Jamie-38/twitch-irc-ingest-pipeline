@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Jamie-38/stream-pipeline/internal/observe"
-	"github.com/Jamie-38/stream-pipeline/internal/types"
+	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/observe"
+	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/types"
 )
 
 func Control_scheduler(ctx context.Context, controlCh <-chan types.IRCCommand, writerCh chan<- string) {

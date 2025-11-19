@@ -6,7 +6,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/Jamie-38/stream-pipeline/internal/observe"
+	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/observe"
 )
 
 func StartReader(ctx context.Context, conn *websocket.Conn, writerCh chan<- string, readCh chan<- string) error {

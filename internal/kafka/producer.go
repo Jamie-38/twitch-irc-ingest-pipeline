@@ -6,7 +6,7 @@ import (
 
 	kafkago "github.com/segmentio/kafka-go"
 
-	ircevents "github.com/Jamie-38/stream-pipeline/internal/irc_events"
+	ircevents "github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/irc_events"
 )
 
 func KafkaProducer(ctx context.Context, writer MessageWriter, parseCh <-chan ircevents.Event) {

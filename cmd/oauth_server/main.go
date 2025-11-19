@@ -8,10 +8,10 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/Jamie-38/stream-pipeline/internal/config"
-	"github.com/Jamie-38/stream-pipeline/internal/healthcheck"
-	"github.com/Jamie-38/stream-pipeline/internal/oauth"
-	"github.com/Jamie-38/stream-pipeline/internal/observe"
+	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/config"
+	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/healthcheck"
+	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/oauth"
+	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/observe"
 )
 
 func main() {

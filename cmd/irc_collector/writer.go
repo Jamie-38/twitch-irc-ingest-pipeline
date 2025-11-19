@@ -5,7 +5,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"github.com/Jamie-38/stream-pipeline/internal/observe"
+	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/observe"
 )
 
 func IRCWriter(ctx context.Context, conn *websocket.Conn, writerCh <-chan string) error {

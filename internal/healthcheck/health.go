@@ -7,7 +7,7 @@ import (
 
 	"log/slog"
 
-	"github.com/Jamie-38/stream-pipeline/internal/observe"
+	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/observe"
 )
 
 type Probe struct {
@@ -24,12 +24,12 @@ func New(component string) *Probe {
 func (p *Probe) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
+		_, _ = w.Write([]byte("ok"))
 	})
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, _ *http.Request) {
 		if atomic.LoadInt32(&p.ready) == 1 {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("ready"))
+			_, _ = w.Write([]byte("ready"))
 			return
 		}
 		http.Error(w, "not ready", http.StatusServiceUnavailable)

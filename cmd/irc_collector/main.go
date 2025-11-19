@@ -9,15 +9,15 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	channelrecord "github.com/Jamie-38/stream-pipeline/internal/channel_record"
-	"github.com/Jamie-38/stream-pipeline/internal/config"
-	"github.com/Jamie-38/stream-pipeline/internal/httpapi"
-	ircevents "github.com/Jamie-38/stream-pipeline/internal/irc_events"
-	kstream "github.com/Jamie-38/stream-pipeline/internal/kafka"
-	"github.com/Jamie-38/stream-pipeline/internal/oauth"
-	"github.com/Jamie-38/stream-pipeline/internal/observe"
-	"github.com/Jamie-38/stream-pipeline/internal/scheduler"
-	"github.com/Jamie-38/stream-pipeline/internal/types"
+	channelrecord "github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/channel_record"
+	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/config"
+	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/httpapi"
+	ircevents "github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/irc_events"
+	kstream "github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/kafka"
+	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/oauth"
+	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/observe"
+	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/scheduler"
+	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/types"
 )
 
 func main() {
@@ -63,7 +63,11 @@ func main() {
 		lg.Error("websocket connect failed", "err", err, "uri", os.Getenv("TWITCH_IRC_URI"))
 		os.Exit(1)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			lg.Warn("failed to close twitch websocket", "err", err)
+		}
+	}()
 
 	lg.Info("connected", "uri", os.Getenv("TWITCH_IRC_URI"))
 
@@ -76,7 +80,11 @@ func main() {
 
 	// kafka writer (lifecycle tied to main)
 	w := kstream.NewWriter(os.Getenv("KAFKA_BROKERS"), os.Getenv("KAFKA_TOPIC"))
-	defer w.Close()
+	defer func() {
+		if err := w.Close(); err != nil {
+			lg.Error("kafka writer close failed", "err", err)
+		}
+	}()
 
 	// all stages run under errgroup
 

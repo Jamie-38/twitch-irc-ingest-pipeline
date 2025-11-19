@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Jamie-38/stream-pipeline/internal/types"
+	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/types"
 )
 
 func LoadTokenJSON(path string) (types.Token, error) {
@@ -13,9 +13,11 @@ func LoadTokenJSON(path string) (types.Token, error) {
 
 	f, err := os.Open(path)
 	if err != nil {
-		return tok, fmt.Errorf("open token file %q: %w", path, err)
+		return tok, fmt.Errorf("open account file %q: %w", path, err)
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	if err := json.NewDecoder(f).Decode(&tok); err != nil {
 		return tok, fmt.Errorf("decode token json %q: %w", path, err)

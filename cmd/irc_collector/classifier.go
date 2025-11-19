@@ -4,9 +4,9 @@ import (
 	"context"
 	"strings"
 
-	ircevents "github.com/Jamie-38/stream-pipeline/internal/irc_events"
-	"github.com/Jamie-38/stream-pipeline/internal/observe"
-	"github.com/Jamie-38/stream-pipeline/internal/types"
+	ircevents "github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/irc_events"
+	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/observe"
+	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/types"
 )
 
 func ClassifyLine(ctx context.Context, readerCh <-chan string, parseCh chan<- ircevents.Event, membershipCh chan<- types.MembershipEvent, username string) {

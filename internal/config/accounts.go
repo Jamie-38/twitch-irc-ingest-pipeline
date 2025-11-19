@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Jamie-38/stream-pipeline/internal/types"
+	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/types"
 )
 
 func LoadAccount(path string) (types.Account, error) {
@@ -15,7 +15,9 @@ func LoadAccount(path string) (types.Account, error) {
 	if err != nil {
 		return acc, fmt.Errorf("open account file %q: %w", path, err)
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	dec := json.NewDecoder(f)
 	if err := dec.Decode(&acc); err != nil {

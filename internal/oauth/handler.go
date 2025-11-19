@@ -7,8 +7,8 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/Jamie-38/stream-pipeline/internal/observe"
-	"github.com/Jamie-38/stream-pipeline/internal/types"
+	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/observe"
+	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/types"
 )
 
 var lg = observe.C("oauth")
@@ -22,7 +22,10 @@ func Index(w http.ResponseWriter, r *http.Request) {
 		clientID, redirectURI)
 
 	lg.Info("oauth index hit", "remote", r.RemoteAddr)
-	fmt.Fprintf(w, `<a href="%s">Click here to authenticate with Twitch</a>`, authURL)
+
+	if _, err := fmt.Fprintf(w, `<a href="%s">Click here to authenticate with Twitch</a>`, authURL); err != nil {
+		lg.Warn("failed to write index response", "err", err)
+	}
 }
 
 func Callback(w http.ResponseWriter, r *http.Request) {
@@ -59,7 +62,11 @@ func Callback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Token exchange failed", http.StatusBadGateway)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			lg.Warn("failed to close token response body", "err", err)
+		}
+	}()
 
 	var tokenData types.Token
 	if err := json.NewDecoder(resp.Body).Decode(&tokenData); err != nil {
@@ -74,7 +81,12 @@ func Callback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to write token file", http.StatusInternalServerError)
 		return
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			lg.Error("failed to close token file", "path", path, "err", err)
+		}
+	}()
+
 	if err := json.NewEncoder(f).Encode(tokenData); err != nil {
 		lg.Error("failed to encode token file", "path", path, "err", err)
 		http.Error(w, "Failed to encode token file", http.StatusInternalServerError)
@@ -82,5 +94,8 @@ func Callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	lg.Info("oauth token saved", "path", path, "remote", r.RemoteAddr)
-	fmt.Fprintf(w, "Authentication successful. Token saved.")
+
+	if _, err := fmt.Fprintf(w, "Authentication successful. Token saved."); err != nil {
+		lg.Warn("failed to write success response", "err", err)
+	}
 }
