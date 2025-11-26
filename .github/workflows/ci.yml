@@ -27,3 +27,6 @@ jobs:
         with:
           version: latest
           args: --timeout 5m
+
+      - name: Build Docker image
+        run: docker build -t twitch-irc-pipeline:ci-test .
