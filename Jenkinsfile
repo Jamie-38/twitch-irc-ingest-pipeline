@@ -1,6 +1,11 @@
 pipeline {
     agent any
 
+    environment {
+        IMAGE_NAME = 'twitch-irc-ingest-pipeline'
+        IMAGE_TAG = "${BUILD_NUMBER}"
+    }
+
     stages {
         stage('Checkout') {
             steps {
@@ -77,6 +82,21 @@ pipeline {
                 '''
 
                 sh 'ls -lah dist'
+            }
+        }
+
+        stage('Build Docker image') {
+            steps {
+                sh 'mkdir -p dist'
+                sh '''
+                    docker build \
+                      -t ${IMAGE_NAME}:${IMAGE_TAG} \
+                      -t ${IMAGE_NAME}:latest \
+                      .
+                '''
+                sh 'docker image ls | grep "${IMAGE_NAME}" || true'
+                sh 'printf "%s:%s\\n" "${IMAGE_NAME}" "${IMAGE_TAG}" > dist/docker-image.txt'
+                sh 'printf "%s:latest\\n" "${IMAGE_NAME}" >> dist/docker-image.txt'
             }
         }
     }
