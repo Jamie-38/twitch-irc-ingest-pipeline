@@ -1,18 +1,21 @@
 # Twitch IRC Ingest Pipeline
 
-A Go/Redpanda backbone for real-time ingestion of Twitch chat into Kafka. This service forms the ingestion layer of a scalable analytics and ML pipeline, providing high-quality streaming data for downstream processing.
+A Go/Redpanda backbone for real-time ingestion of Twitch chat into Kafka, with a Windows WPF operator console for local control and monitoring. This repository forms the ingestion and control layer of a scalable analytics and ML pipeline, providing high-quality streaming data for downstream processing.
 
 ## Overview
 
 This repository contains a backend streaming system that connects to Twitch’s IRC interface, manages channel subscriptions, and publishes structured chat events into Kafka (via Redpanda). It acts as the ingestion spine of a larger data and machine-learning stack, responsible for the reliable, fault-tolerant capture and normalization of live chat data.
 
-The system is composed of three focused services:
+The repository also includes a Windows WPF desktop operator console (`Twitch_Ingest_Pipeline_App`) that communicates with the collector’s HTTP API to monitor service health, inspect desired channel state, and issue join/part commands from a desktop UI.
+
+The system is composed of four focused components:
 
 - **`irc_collector`** – Maintains a WebSocket connection to Twitch IRC, joins and parts channels on demand, parses IRC traffic into structured events, and writes those events to Kafka.
 - **`oauth_server`** – Handles the Twitch OAuth2 authorization code flow, exchanges authorization codes for access tokens, and persists the token for the collector to use.
 - **`kafka_consumer`** – A small diagnostic consumer that reads chat events from Kafka and prints them, verifying that ingestion is working end-to-end.
+- **`Twitch_Ingest_Pipeline_App`** – A Windows WPF desktop operator console for the pipeline. It calls the collector HTTP API to display health/readiness state, list desired channels, and trigger join/part operations from a desktop UI.
 
-Channel membership is controlled via a lightweight HTTP API (`/join` and `/part`) and persisted in `channels.json`. A reconciler loop continuously compares the desired membership state to the actual IRC state and issues JOIN/PART commands with rate limiting, timeouts, and exponential backoff. All services expose health and readiness endpoints for monitoring.
+Channel membership is controlled via a lightweight HTTP API (`/join`, `/part`, and `/channels`) and persisted in `channels.json`. A reconciler loop continuously compares the desired membership state to the actual IRC state and issues JOIN/PART commands with rate limiting, timeouts, and exponential backoff. All services expose health and readiness endpoints for monitoring.
 
 ## Architecture
 
@@ -23,7 +26,7 @@ The system is organized into two cooperating planes:
 
 ### Data Flow
 
-```
+```text
 Twitch IRC
    |
    |  (WebSocket: PASS/NICK/CAP, PRIVMSG, JOIN/PART, PING/PONG)
@@ -45,14 +48,14 @@ Kafka / Redpanda topic (e.g. "chat-messages")
 
 `irc_collector` is built as a multi-stage concurrent pipeline. Each stage communicates over Go channels and is supervised by an `errgroup` to ensure coordinated shutdown when a stage errors or the process receives a signal. Parsed messages are converted into `PrivMsg` events (`internal/irc_events`) and published through a thin Kafka writer abstraction (`internal/kafka`).
 
-
 ### Control Plane
 
-```
-     HTTP client
+```text
+     HTTP client / WPF desktop console
        |
        |  GET /join?channel=chess
        |  GET /part?channel=chess
+       |  GET /channels
        v
   [internal/httpapi]
        |
@@ -77,18 +80,36 @@ controlCh (types.IRCCommand)
        v
 IRCWriter → Twitch IRC
 ```
+
 The reconciler follows a pattern similar to Kubernetes controllers: desired state is persisted, observed state is fed in via membership events, and the loop drives the system toward convergence with rate-limiting and retry logic. This ensures channel membership stays correct even across disconnects, missed events, or network glitches.
 
 ### Authentication
 
 The `oauth_server` runs independently and provides the access token used by the collector:
 
-```
+```text
 Browser → [oauth_server] → Twitch OAuth2 → token saved → used by irc_collector
 ```
 
 The collector mounts the token file at runtime and uses it to authenticate its IRC session.
 
+### Desktop Operator Console
+
+The Windows WPF app runs outside the Dockerized backend and communicates with the collector’s HTTP API over `localhost`. It is intended as a lightweight operator console for local development and demonstration rather than as part of the containerized runtime.
+
+```text
+WPF desktop app
+   |
+   |  HTTP (localhost:6060)
+   v
+irc_collector HTTP API
+   |
+   +--> /healthz
+   +--> /readyz
+   +--> /channels
+   +--> /join
+   +--> /part
+```
 
 ## Components
 
@@ -106,22 +127,22 @@ A diagnostic utility that consumes events from Kafka and prints them. Used to va
 
 **internal/channel_record/**
 
-Responsible for desired channel state.
-The Controller persists the set of desired channels to channels.json using atomic write-and-rename semantics and exposes immutable snapshots for safe concurrent access.
+Responsible for desired channel state.  
+The Controller persists the set of desired channels to `channels.json` using atomic write-and-rename semantics and exposes immutable snapshots for safe concurrent access.  
 The Rectifier implements a controller loop: it reconciles desired state with observed IRC membership, applying rate limits, join/part timeouts, exponential backoff, and scheduled retries. Tests use a fake clock for deterministic verification of timing logic.
 
 **internal/httpapi/**
 
-Implements the control-plane HTTP interface (/join and /part). It validates requests, enqueues channel commands, and provides liveness/readiness probes for container orchestration. This is the public entrypoint for modifying which channels the collector follows.
+Implements the control-plane HTTP interface (`/join`, `/part`, and `/channels`). It validates requests, enqueues channel commands, exposes the controller snapshot for read access, and provides liveness/readiness probes for container orchestration. This is the public entrypoint for modifying and inspecting which channels the collector follows.
 
 **internal/kafka/**
 
-Thin abstractions over kafka-go.
-writer.go provides a configurable Kafka writer, while producer.go handles marshalling IRC events and publishing them to the configured Kafka topic. This decouples the ingest pipeline from the underlying Kafka client.
+Thin abstractions over `kafka-go`.  
+`writer.go` provides a configurable Kafka writer, while `producer.go` handles marshalling IRC events and publishing them to the configured Kafka topic. This decouples the ingest pipeline from the underlying Kafka client.
 
 **internal/irc_events/**
 
-Defines strongly-typed IRC event structures such as PrivMsg. These types act as the internal event schema and Kafka payload format, keeping raw IRC parsing separated from downstream consumers.
+Defines strongly-typed IRC event structures such as `PrivMsg`. These types act as the internal event schema and Kafka payload format, keeping raw IRC parsing separated from downstream consumers.
 
 **internal/scheduler/**
 
@@ -129,18 +150,29 @@ Formats IRC control commands (JOIN, PART, and PONG responses) and forwards them 
 
 **internal/observe/**
 
-Centralized structured logging built on slog.
+Centralized structured logging built on `slog`.  
 Provides component-scoped loggers and environment-driven log levels, ensuring consistent observability across all services.
 
 **internal/types/**
 
 Pure data models shared across components, including account configuration, IRC command types, membership events, Kafka payloads, and channel-file schema definitions. These types define the contracts between subsystems.
 
+**Twitch_Ingest_Pipeline_App/**
+
+A Windows WPF desktop operator console for the collector’s HTTP API. It currently supports:
+- health and readiness checks
+- viewing desired channel subscriptions via `/channels`
+- join and part actions
+- periodic refresh/polling of control-plane state
+- an activity log for operator feedback
+
+The app is intended for local development, demonstration, and operations-style control of the pipeline.
+
 ---
 
 ## Getting Started (Docker Compose)
 
-This guide walks you through running the Twitch IRC Ingest Pipeline from a clean clone to seeing live Twitch chat messages flowing through Kafka/Redpanda. Follow the steps in order with no guesswork.
+This guide walks you through running the Twitch IRC Ingest Pipeline from a clean clone to seeing live Twitch chat messages flowing through Kafka/Redpanda.
 
 ---
 
@@ -155,6 +187,12 @@ You need:
   - `TWITCH_CLIENT_SECRET`
   - Redirect URI set to:  
     `http://localhost:3000/callback`
+
+For the WPF desktop client, you additionally need:
+
+- **Windows**
+- **Visual Studio 2022** or another compatible .NET/WPF development environment
+- **.NET 8 SDK** with WPF support
 
 ---
 
@@ -220,7 +258,7 @@ docker compose up --build oauth_server redpanda
 
 When logs show the OAuth server is listening on port **3000**, open:
 
-```
+```text
 http://localhost:3000/
 ```
 
@@ -230,7 +268,7 @@ Then:
 2. Log in and approve the app.
 3. When complete, the token is written to:
 
-```
+```text
 tokens/default.token.json
 ```
 
@@ -250,10 +288,10 @@ docker compose up --build
 
 This starts:
 
-- `redpanda` — Kafka-compatible message broker  
-- `oauth_server` — now idle but healthy  
-- `irc_collector` — Twitch IRC ingest pipeline  
-- `kafka_consumer` — diagnostic consumer printing chat messages  
+- `redpanda` — Kafka-compatible message broker
+- `oauth_server` — now idle but healthy
+- `irc_collector` — Twitch IRC ingest pipeline
+- `kafka_consumer` — diagnostic consumer printing chat messages
 
 You can inspect logs with:
 
@@ -276,15 +314,21 @@ curl "http://localhost:6060/join?channel=chess"
 
 The system will:
 
-- Persist the channel in `channels.json`
-- Reconcile desired vs actual IRC membership
-- Rate-limit JOIN commands
-- Issue a JOIN to Twitch
+- persist the channel in `channels.json`
+- reconcile desired vs actual IRC membership
+- rate-limit JOIN commands
+- issue a JOIN to Twitch
 
 To part a channel:
 
 ```bash
 curl "http://localhost:6060/part?channel=chess"
+```
+
+To inspect the current desired channel set:
+
+```bash
+curl "http://localhost:6060/channels"
 ```
 
 ---
@@ -300,7 +344,7 @@ docker logs -f kafka_consumer
 Now send a message in the Twitch channel you joined.  
 You should see output like:
 
-```
+```text
 message at topic/partition/offset chat-messages/0/42: <key> = {"UserID":"...","UserLogin":"...","ChannelID":"...","Text":"..."}
 ```
 
@@ -310,7 +354,31 @@ This confirms the end-to-end pipeline works:
 
 ---
 
-### 7. Stopping and Cleanup
+### 7. Run the WPF Operator Console (Optional)
+
+The WPF desktop client is not part of the Docker Compose stack. It runs on Windows and talks to the collector HTTP API over `localhost`.
+
+Typical workflow:
+
+1. Start the backend pipeline locally or via Docker Compose.
+2. Ensure the collector API is reachable on `http://127.0.0.1:6060`.
+3. Open the solution in:
+
+```text
+Twitch_Ingest_Pipeline_App/Twitch_Ingest_Pipeline_App.sln
+```
+
+4. Run the WPF app from Visual Studio.
+
+The console can then:
+- show health/readiness state
+- display the desired channels list
+- issue join/part commands
+- poll for updates
+
+---
+
+### 8. Stopping and Cleanup
 
 Press **Ctrl+C** in the compose terminal to shut down containers.
 
@@ -328,98 +396,90 @@ docker compose down -v
 
 ## Testing
 
-Run all tests:
+Run all Go tests:
 
-``` bash
+```bash
 go test ./...
 ```
 
-The tests are pure Go unit tests -- they do **not** require Twitch,
-Kafka, or Docker to be running.
+The backend tests are pure Go unit tests — they do **not** require Twitch, Kafka, or Docker to be running.
 
 Key areas covered:
 
--   **IRC parsing (`cmd/irc_collector/classifier.go`)**
-    -   Unit tests for parsing PRIVMSG/JOIN/PART lines, handling
-        malformed input, and correctly extracting tags, prefixes, and
-        trailing text.
-    -   A fuzz test for the IRCv3 tag unescape function to ensure it
-        never panics on arbitrary input.
--   **Channel reconciliation (`internal/channel_record`)**
-    -   Tests for the controller-style reconciler that manages desired
-        vs actual channel membership.
-    -   Uses a **fake clock** to deterministically verify rate limiting,
-        join/part timeouts, exponential backoff, and retry scheduling.
--   **HTTP control API (`internal/httpapi`)**
-    -   Tests for `/join` and `/part`:
-        -   Enqueued commands are lowercased and normalized with `#`.
-        -   Missing or invalid parameters are rejected with
-            `400 Bad Request`.
--   **OAuth handlers (`internal/oauth`)**
-    -   Tests that the index page renders a valid Twitch auth URL using
-        the configured client ID and redirect URI.
-    -   Tests that the callback handler correctly rejects requests
-        missing the `code` parameter.
+- **IRC parsing (`cmd/irc_collector/classifier.go`)**
+  - Unit tests for parsing `PRIVMSG`/`JOIN`/`PART` lines, handling malformed input, and correctly extracting tags, prefixes, and trailing text.
+  - A fuzz test for the IRCv3 tag unescape function to ensure it never panics on arbitrary input.
+- **Channel reconciliation (`internal/channel_record`)**
+  - Tests for the controller-style reconciler that manages desired vs actual channel membership.
+  - Uses a **fake clock** to deterministically verify rate limiting, join/part timeouts, exponential backoff, and retry scheduling.
+- **HTTP control API (`internal/httpapi`)**
+  - Tests for `/join` and `/part`:
+    - Enqueued commands are lowercased and normalized with `#`.
+    - Missing or invalid parameters are rejected with `400 Bad Request`.
+- **OAuth handlers (`internal/oauth`)**
+  - Tests that the index page renders a valid Twitch auth URL using the configured client ID and redirect URI.
+  - Tests that the callback handler correctly rejects requests missing the `code` parameter.
 
-What is **not** currently covered by tests:
+What is **not** currently covered by automated tests:
 
--   The WebSocket connector, IRC reader/writer, and Kafka writer are
-    exercised indirectly in manual end-to-end runs, but do not yet have
-    dedicated integration tests.
--   Docker Compose / Redpanda startup is not tested automatically.
-
+- The WebSocket connector, IRC reader/writer, and Kafka writer are exercised indirectly in manual end-to-end runs, but do not yet have dedicated integration tests.
+- Docker Compose / Redpanda startup is not tested automatically.
+- The WPF desktop client is not yet covered by automated tests.
 
 ## Tech Stack, Limitations, and Future Extensions
 
 ### Tech Stack
 
-This project is built on a backend stack designed for real-time streaming and distributed processing:
+This project is built on a backend and desktop stack designed for real-time streaming, control, and distributed processing:
 
-- **Go 1.24** — Core implementation language for all services.
+- **Go 1.24** — Core implementation language for backend services.
 - **Redpanda (Kafka API compatible)** — Message broker for high-throughput chat event streaming.
 - **kafka-go** — Go client for writing/reading Kafka messages.
 - **gorilla/websocket** — WebSocket implementation used for Twitch IRC communication.
-- **Docker & Docker Compose** — Service orchestration and reproducible local environments.
+- **Docker & Docker Compose** — Service orchestration and reproducible local backend environments.
 - **Twitch IRC & OAuth2 APIs** — Real-time chat ingestion and authentication.
-- **slog (structured logging)** — Unified and context-aware logging across components.
+- **slog (structured logging)** — Unified and context-aware logging across backend services.
+- **C# / .NET 8 / WPF** — Windows desktop operator console for API-driven control and monitoring.
 
-These choices emphasize correctness, observability, concurrency, and the ability to scale or extend into full data/ML workflows.
+These choices emphasize correctness, observability, concurrency, and the ability to scale or extend into full data/ML workflows while also demonstrating a desktop UI control surface over the pipeline.
 
+## Limitations / Non-Goals
 
-## Limitations / Non‑Goals
-
-This repository focuses on the ingestion spine of a Twitch analytics/ML system. The following aspects are intentionally out of scope for this stage:
+This repository focuses on the ingestion spine and local operator control surface of a Twitch analytics/ML system. The following aspects are intentionally out of scope for this stage:
 
 - **Single-user authentication** — Only one Twitch account/token is supported at a time. Token refresh and multi-account orchestration are not implemented.
-- **Limited security hardening** — The `/join` and `/part` endpoints do not require authentication and are intended for local/dev use only.
+- **Limited security hardening** — The `/join`, `/part`, and `/channels` endpoints do not require authentication and are intended for local/dev use only.
 - **No long-term persistence layer** — Kafka events are consumed via a diagnostic consumer; no warehouse, data lake, or database storage layer is included.
 - **No horizontal scaling logic** — The collector runs as a single instance; coordination across multiple ingest workers is future work.
 - **Minimal Kafka configuration** — The producer uses simple per-message writes without batching or advanced delivery semantics.
+- **Desktop client is local-first** — The WPF app is intended as a Windows operator console for local development/demo use, not a production deployment surface.
+- **No automated WPF test suite yet** — The desktop client is currently validated manually.
 
-These constraints keep the project focused on demonstrating a clean ingestion architecture and streaming pipeline.
-
+These constraints keep the project focused on demonstrating a clean ingestion architecture, a controller-style control plane, and a desktop operator interface without overextending the scope.
 
 ## Future Work / Extensions
 
-This ingestion backbone is intended to support further data engineering and machine‑learning development. Possible extensions include:
+This ingestion backbone is intended to support further data engineering, machine-learning, and operator tooling development. Possible extensions include:
 
 - **Analytical storage**  
   Export Kafka messages into ClickHouse, PostgreSQL, S3/Parquet, or a data lake for queryable historical datasets.
 
-- **Real‑time feature extraction**  
+- **Real-time feature extraction**  
   Compute aggregates, message embeddings, rate statistics, sentiment, or keyword features in a stream processor.
 
 - **Model training and inference**  
   Train NLP or classification models on chat messages, then run inference either batch-wise or streaming.
 
-- **Multi‑account ingest workers**  
+- **Multi-account ingest workers**  
   Support multiple Twitch accounts, token refresh, and horizontal scaling across channels.
 
 - **Observability upgrades**  
-  Metrics for Kafka throughput, IRC reconnects, join/part attempts, and reconciler outcomes.
+  Metrics for Kafka throughput, IRC reconnects, join/part attempts, reconciler outcomes, and richer control-plane status.
 
 - **Extended IRC event types**  
-  Capture USERNOTICE, ROOMSTATE, raids, subscriptions, etc., with schema evolution support.
+  Capture `USERNOTICE`, `ROOMSTATE`, raids, subscriptions, etc., with schema evolution support.
 
-These extensions can evolve the repository into a full data/ML engineering portfolio project while keeping the ingestion layer stable.
+- **Richer desktop client features**  
+  Bulk join/part actions, better validation, UI state binding/MVVM, richer status indicators, and improved operator workflows.
 
+These extensions can evolve the repository into a fuller data/ML engineering and software engineering portfolio project while keeping the ingestion layer stable.
