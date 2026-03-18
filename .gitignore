@@ -1,27 +1,33 @@
+# .NET / Visual Studio
+.vs/
 bin/
-*.exe
-*.test
-*.out
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# General editor / OS clutter
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
+*.exe
+*.test
+*.out
+*.log
 
-
+# Local secrets / runtime state
 .env
 accounts/account.config.json
 tokens/default.token.json
 internal/channel_record/channels.json
-*.log
 
-# Allow folders, templates
+# Keep folders / templates
 !tokens/
 !tokens/.gitkeep
-
 !accounts/
-!config/accounts.example.json
-
 !internal/channel_record/
-!config/channels.example.json
-
-
+!internal/templates/account.example.json
+!internal/templates/channels.example.json
+!internal/templates/env.example
