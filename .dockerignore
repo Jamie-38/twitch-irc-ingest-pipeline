@@ -8,19 +8,16 @@ bin/
 *.test
 *.out
 
-
 .env
 tokens/default.token.json
 accounts/account.config.json
 internal/channel_record/channels.json
 *.log
 
-# Allow folders, templates
+# Allow folders / templates
 !tokens/.gitkeep
 !accounts/
-!config/accounts.example.json
 !internal/channel_record/
-!config/channels.example.json
-
-
-
+!internal/templates/account.example.json
+!internal/templates/channels.example.json
+!internal/templates/env.example
