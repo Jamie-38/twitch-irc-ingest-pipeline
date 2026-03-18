@@ -15,7 +15,13 @@ pipeline {
                     reuseNode true
                 }
             }
+            environment {
+                HOME = "${WORKSPACE}"
+                GOCACHE = "${WORKSPACE}/.gocache"
+                GOMODCACHE = "${WORKSPACE}/.gomodcache"
+            }
             steps {
+                sh 'mkdir -p "$GOCACHE" "$GOMODCACHE"'
                 sh 'go version'
                 sh 'go test ./... -v'
             }
