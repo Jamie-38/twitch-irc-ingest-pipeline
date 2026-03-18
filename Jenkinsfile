@@ -45,5 +45,45 @@ pipeline {
                 sh 'golangci-lint run --timeout 5m'
             }
         }
+
+        stage('Build Go binaries') {
+            agent {
+                docker {
+                    image 'golang:1.24'
+                    reuseNode true
+                }
+            }
+            environment {
+                HOME = "${WORKSPACE}"
+                GOCACHE = "${WORKSPACE}/.gocache"
+                GOMODCACHE = "${WORKSPACE}/.gomodcache"
+            }
+            steps {
+                sh 'mkdir -p "$GOCACHE" "$GOMODCACHE" dist'
+
+                sh '''
+                    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+                    go build -o dist/irc_collector ./cmd/irc_collector
+                '''
+
+                sh '''
+                    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+                    go build -o dist/oauth_server ./cmd/oauth_server
+                '''
+
+                sh '''
+                    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+                    go build -o dist/kafka_consumer ./cmd/kafka_consumer
+                '''
+
+                sh 'ls -lah dist'
+            }
+        }
+    }
+
+    post {
+        always {
+            archiveArtifacts artifacts: 'dist/**', allowEmptyArchive: true
+        }
     }
 }
