@@ -6,10 +6,14 @@ import (
 	"log"
 	"os"
 
+	"github.com/Jamie-38/twitch-irc-ingest-pipeline/internal/config"
 	"github.com/segmentio/kafka-go"
 )
 
 func main() {
+	if err := config.LoadEnv(); err != nil {
+		log.Printf("env file not loaded: %v", err)
+	}
 	brokers := os.Getenv("KAFKA_BROKERS")
 	if brokers == "" {
 		log.Fatal("KAFKA_BROKERS is empty")

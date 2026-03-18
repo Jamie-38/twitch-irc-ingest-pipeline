@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"net"
@@ -41,9 +42,37 @@ func (api *APIController) Part(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("Queued part for channel: " + ch))
 }
 
-func Run(ctx context.Context, controlCh chan types.IRCCommand) error {
+func (api *APIController) Channels(w http.ResponseWriter, r *http.Request) {
+	version, channels, updatedAt, account := api.SnapshotReader.Snapshot()
+
+	resp := struct {
+		Account   string    `json:"account"`
+		Version   uint64    `json:"version"`
+		UpdatedAt time.Time `json:"updated_at"`
+		Channels  []string  `json:"channels"`
+	}{
+		Account:   account,
+		Version:   version,
+		UpdatedAt: updatedAt,
+		Channels:  channels,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		api.lg.Error("encode channels response failed", "err", err, "remote", r.RemoteAddr)
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+		return
+	}
+}
+
+func Run(ctx context.Context, controlCh chan types.IRCCommand, snapshotReader ChannelSnapshotReader) error {
 	lg := observe.C("http_api")
-	api := &APIController{ControlCh: controlCh, lg: lg}
+	api := &APIController{
+		ControlCh:      controlCh,
+		SnapshotReader: snapshotReader,
+		lg:             lg,
+	}
 
 	mux := http.NewServeMux()
 	probe := healthcheck.New("http_api")
@@ -52,6 +81,7 @@ func Run(ctx context.Context, controlCh chan types.IRCCommand) error {
 
 	mux.HandleFunc("/join", api.Join)
 	mux.HandleFunc("/part", api.Part)
+	mux.HandleFunc("/channels", api.Channels)
 
 	host := strings.TrimSpace(os.Getenv("HTTP_API_HOST"))
 	if host == "" {

@@ -92,7 +92,7 @@ func main() {
 	g.Go(func() error { return ctl.Run(ctx) })
 
 	// HTTP control plane
-	g.Go(func() error { return httpapi.Run(ctx, controlCh) })
+	g.Go(func() error { return httpapi.Run(ctx, controlCh, ctl) })
 
 	// Channel rectifier
 	cfg := channelrecord.NewDefaultConfig()
