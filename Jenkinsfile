@@ -7,9 +7,10 @@ pipeline {
     }
 
     stages {
-        stage('Checkout') {
+        stage('Prepare workspace') {
             steps {
-                checkout scm
+                sh 'rm -rf dist'
+                sh 'mkdir -p dist'
             }
         }
 
@@ -87,7 +88,6 @@ pipeline {
 
         stage('Build Docker image') {
             steps {
-                sh 'mkdir -p dist'
                 sh '''
                     docker build \
                       -t ${IMAGE_NAME}:${IMAGE_TAG} \
@@ -97,6 +97,16 @@ pipeline {
                 sh 'docker image ls | grep "${IMAGE_NAME}" || true'
                 sh 'printf "%s:%s\\n" "${IMAGE_NAME}" "${IMAGE_TAG}" > dist/docker-image.txt'
                 sh 'printf "%s:latest\\n" "${IMAGE_NAME}" >> dist/docker-image.txt'
+            }
+        }
+
+        stage('Smoke test Docker image structure') {
+            steps {
+                sh '''
+                    docker run --rm ${IMAGE_NAME}:${IMAGE_TAG} \
+                      ls -lah /app > dist/docker-smoke.txt
+                '''
+                sh 'cat dist/docker-smoke.txt'
             }
         }
     }
