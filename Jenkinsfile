@@ -8,7 +8,7 @@ pipeline {
             }
         }
 
-        stage('Inspect workspace in Go container') {
+        stage('Run Go tests') {
             agent {
                 docker {
                     image 'golang:1.24'
@@ -17,9 +17,7 @@ pipeline {
             }
             steps {
                 sh 'go version'
-                sh 'pwd'
-                sh 'ls -la'
-                sh 'find . -maxdepth 2 -type f | sort | head -100'
+                sh 'go test ./... -v'
             }
         }
     }
